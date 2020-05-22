@@ -26,21 +26,27 @@ int main(int argc, char **argv) {
     io_connect_t connect;
     assert(!IOServiceOpen(service, mach_task_self(), 0, &connect));
 
-    CFStringRef uuid = CFUUIDCreateString(NULL, CFUUIDCreate(NULL));
-    CFMutableDictionaryRef props = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFStringRef uuid = CFUUIDCreateString(NULL, CFUUIDCreate(kCFAllocatorDefault));
+    CFMutableDictionaryRef props = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
     CFDictionarySetValue(props, CFSTR("hdik-unique-identifier"), uuid);
-    CFDataRef path = CFDataCreateWithBytesNoCopy(NULL, (UInt8 *) abspath, strlen(abspath), kCFAllocatorNull);
+    CFDataRef path = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault, (UInt8 *) abspath, strlen(abspath), kCFAllocatorNull);
     assert(path);
     CFDictionarySetValue(props, CFSTR("image-path"), path);
-    CFDataRef props_data = IOCFSerialize(props, 0);
+    /*
+    int fd = open(abspath, 0);
+    assert(fd != -1);
+    void *nsfd = [NSNumber numberWithInt:fd];
+    CFDictionarySetValue(props, CFSTR("image-fd"), nsfd);
+    */
+    //CFDataRef props_data = IOCFSerialize(props, 0);
+    CFDataRef props_data = CFPropertyListCreateData(kCFAllocatorDefault, props, 0x64, 0LL, 0LL);
     assert(props_data);
 
     struct HDIImageCreateBlock64 {
         uint32_t magic;
         uint32_t one;
         char *props;
-        uint32_t null;
-        uint32_t props_size;
+        uint64_t props_size;
         char ignored[0xf8 - 16];
     } stru;
     memset(&stru, 0, sizeof(stru));
@@ -48,11 +54,13 @@ int main(int argc, char **argv) {
     stru.one = 1;
     stru.props = (char *) CFDataGetBytePtr(props_data);
     stru.props_size = CFDataGetLength(props_data);
-
+    assert(offsetof(struct HDIImageCreateBlock64, props) == 8);
+    //printf("%s\n", stru.props);
+    //printf("%lld\n", stru.props_size);
     uint32_t val;
     size_t val_size = sizeof(val);
 
-    kern_return_t ret = IOConnectCallStructMethod(connect, 5, &stru, 0x100, &val, &val_size);
+    kern_return_t ret = IOConnectCallStructMethod(connect, 0, &stru, 0x100, &val, &val_size);
     if(ret) {
         fprintf(stderr, "returned %x\n", ret);
         return 1;
