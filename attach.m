@@ -20,18 +20,28 @@ int main(int argc, char **argv) {
         fprintf(stderr, "couldn't resolve file: %s\n", strerror(errno));
         return 1;
     }
+    kern_return_t ret;
 
     io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IOHDIXController"));
     assert(service);
     io_connect_t connect;
-    assert(!IOServiceOpen(service, mach_task_self(), 0, &connect));
+    ret = IOServiceOpen(service, mach_task_self(), 0, &connect);
+    if (!!ret) {
+        fprintf(stderr, "IOServiceOpen: %d\n", ret);
+    }
+    assert(!ret);
 
-    CFStringRef uuid = CFUUIDCreateString(NULL, CFUUIDCreate(kCFAllocatorDefault));
     CFMutableDictionaryRef props = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFStringRef uuid = CFUUIDCreateString(NULL, CFUUIDCreate(kCFAllocatorDefault));
     CFDictionarySetValue(props, CFSTR("hdik-unique-identifier"), uuid);
     CFDataRef path = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault, (UInt8 *) abspath, strlen(abspath), kCFAllocatorNull);
     assert(path);
     CFDictionarySetValue(props, CFSTR("image-path"), path);
+    if (!strncmp(argv[1] + strlen(argv[1]) - strlen(".sparseimage"), ".sparseimage", strlen(".sparseimage"))) {
+        CFDictionarySetValue(props, CFSTR("image-type"), @"sparse");
+    }
+    CFDictionarySetValue(props, CFSTR("autodiskmount"), kCFBooleanFalse);
+    CFDictionarySetValue(props, CFSTR("removable"), kCFBooleanTrue);
     /*
     int fd = open(abspath, 0);
     assert(fd != -1);
@@ -60,7 +70,7 @@ int main(int argc, char **argv) {
     uint32_t val;
     size_t val_size = sizeof(val);
 
-    kern_return_t ret = IOConnectCallStructMethod(connect, 0, &stru, 0x100, &val, &val_size);
+    ret = IOConnectCallStructMethod(connect, 0, &stru, 0x100, &val, &val_size);
     if(ret) {
         fprintf(stderr, "returned %x\n", ret);
         return 1;
