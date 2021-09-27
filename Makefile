@@ -1,6 +1,6 @@
 
 TARGET := iphone:clang:14.3:12.1.2
-ARCHS = armv7 arm64 arm64e
+ARCHS = arm64 arm64e
 
 TOOL_NAME = attach attach2 detach
 
