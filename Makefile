@@ -12,6 +12,7 @@ attach_CODESIGN_FLAGS = -Sent.plist
 
 attach2_FILES = attach2.m
 attach2_PRIVATE_FRAMEWORKS = DiskImages2
+attach2_FRAMEWORKS = IOKit Foundation
 attach2_CODESIGN_FLAGS = -Sent.plist
 
 detach_FILES = detach.c
